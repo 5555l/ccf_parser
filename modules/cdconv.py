@@ -3,12 +3,13 @@
 # The format for this is (seconds.milliseconds) <can_interface> <can_id>#<sequence byte><7 bytes of data>
 # Only the <can_id> onwards matters for this to work
 ###############################################################################
-from operator import lt
+
 import re
 
 def convdump(fn,canid):
     print('Processing CCF dump from', fn)
     ccfl = []
+    
     # Open the dump file
     with open(fn) as cf:
         while True:
@@ -49,6 +50,11 @@ def convdump(fn,canid):
         # Check that its 14bytes of data
         if len(ccfl[cfd]) != 14:
             print('CCF data appears incomplete for sequence', cfd+1)
+            break
+        elif re.search('[^A-F0-9]', ccf) != None:
+            # CCF seems to have something that isn't hex in it, abort.
+            print('Invalid CCF format, invalid hexadecimal character(s) found - abort')
+            ccf = None
             break
         else:
             # Create the CCF string by appending the CCF data from the list in its correct order

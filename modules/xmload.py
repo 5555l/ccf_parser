@@ -1,5 +1,8 @@
+###############################################################################
 # Turn an SDD XML CCF_DATA files into an array of settings
 # This is a nightmarish mish mash of some confusing XML but it gets there in the end
+###############################################################################
+
 import pandas as pd
 
 def sddxconv(root):
@@ -71,7 +74,8 @@ def sddxconv(root):
         }
         # Create a df in the same format as the settings df
         cfs = pd.DataFrame(data1, columns=CCFcols)
-        # Append the found settings to the main settings df
+        # Append the found settings to the settings df
         settings = settings.append(cfs, ignore_index=True)
-
+    
+    # We're all done here, we should no have a big dataframe of settings to play with
     return settings
