@@ -3,6 +3,7 @@ import getopt
 import xml.etree.ElementTree as ET
 import re
 import os
+import pandas as pd
 from modules import cdconv
 from modules import xmload
 cdv = cdconv.convdump
@@ -18,7 +19,7 @@ short_options = "hno:x:o:c:d:m:i"
 long_options = ["help", "xml=", "ccf=", "output=", "dump=", "dump_format=", "can_id="]
 
 help_text = ("\nccfparser options:\n"
-             "   -x / --xml <filename> ......  SSD XML CCF_DATA file containing CCF values\n"
+             "   -x / --xml <filename> ......  SDD XML CCF_DATA file containing CCF values\n"
              "   -o / --output <filename> ...  filename for outputting the result, default is to stdout\n"
              "   -c / --ccf <ccf> ...........  ccf hexadecimal string to be decoded\n"
              "   -d / --dump <filename>......  file to be decoded, this will override any -ccf setting\n"
@@ -72,21 +73,20 @@ if ccf_data_file == None or (ccf == None and dump == None):
 print('Processing', ccf_data_file)
 root_node = ET.parse(ccf_data_file).getroot()
 
-ccf_set = None
-
 # Convert the SDD CCF_DATA into a more useful array of settings 
 ccf_set = xmload.sddxconv(root_node)
 
-# Check if we got any CCF from the XML, if not throw a wobbly
-if ccf_set == None:
+# Check if we got any CCF settings from the XML, if not throw a wobbly
+if ccf_set.empty:
     print('ERROR: No CCF data found in', ccf_data_file, '- aborting')
+    sys.exit(2)
 else:
-    print('Processed', ccf_data_file, 'succesfully')
+    print('Processed', ccf_data_file)
 
-# If we've got this far then we have a valid CCF XML file to play with so now lets read in the CCF itself.
+# If we've got this far then we have a CCF XML file to play with so now lets read in the CCF itself.
 # The job here is to have a normalised hexadeciaml string, start with checking if there is a dump file being used
 # Currently this only supports options of candump format or a hex string, but made it extenable for future use by other ways of catching the CCF on the can.
-if  dump == None or os.path.isfile(dump) == False:
+if  ccf == None and (dump == None or os.path.isfile(dump) == False):
     print('CCF dump file was not found - aborting')
     sys.exit(2)
     
@@ -111,3 +111,4 @@ if re.search('[^A-F0-9]', ccf) != None:
     print('Invalid CCF format, invalid hexadecimal character(s) found - abort')
     sys.exit(2)
 
+# Now for the fun bit, where we try to match the settings to the CCF values
