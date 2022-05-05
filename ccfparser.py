@@ -85,18 +85,13 @@ for current_argument, current_value in arguments:
     elif current_argument in ("-i", "--can_id"):
         ccfid = current_value
 
-# We can't do anything unless we have the CCF XML and some CCF data to process, so check we have those
+# We can't do anything unless we have the CCF_DATA XML and some CCF data to process, so check we have those
 if ccf_data_file == None or (ccf == None and dump == None):
     print("SSD XML CCF_DATA file must be specified along with either a string containing the CCF or a dump file to process")
     print(help_text)
     sys.exit(2)
-elif dump != None and dumpf == None:
-    # Dump file provided but not its format
-    print('Dump file', dump, 'was specified but not its format')
-    print(help_text)
-    sys.exit(2)
 
-# Load the XML CCF data file
+# Load the XML CCF_DATA file
 print('Loading', ccf_data_file)
 root_node = ET.parse(ccf_data_file).getroot()
 
@@ -125,7 +120,7 @@ if ccf != None and dump == None and re.search('[^A-F0-9]', ccf) != None:
     sys.exit(2)
 elif ccf == None and (dump == None or os.path.isfile(dump) == False):
     # A CCF string wasn't provided and no dump file was specified or present, there's nothing to do here so stop.
-    print('CCF data not found - aborting')
+    print('No CCF data found. Either it was not provided or dump file does not exist - aborting')
     sys.exit(2)
 elif dump != None and dumpf == "cd":
     # dump file provided and candump format has been set so turn this into a long hexadeciemal string
@@ -236,7 +231,7 @@ if ex !=None:
 
 # If an output filename is given then write it to the file
 if of != None:
-    print('Exporting CCF settings to', of)
+    print('Writing CCF settings to', of)
     # Lets get rid of any old files from previous runs
     if os.path.exists(of): os.remove(of)
     # Default output is a csv, but optionally can be a json
