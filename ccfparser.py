@@ -30,16 +30,16 @@ short_options = "hno:x:jno:o:e:c:d:m:i"
 long_options = ["help", "xml=", "json", "ccf=", "output=", "export=", "dump=", "dump_format=", "can_id="]
 
 help_text = ("\nccfparser options:\n"
-             "   -x / --xml <filename> ......  SDD XML CCF_DATA file containing CCF values\n"
-             "   -j / --json ................  sets the output file format to json, default is a string\n"
+             "   -x / --xml <filename> ......  SDD XML CCF_DATA file containing CCF options\n"
+             "   -j / --json ................  sets the CCF setting output file format to json, default is csv\n"
              "   -o / --output <filename> ...  filename for outputting the result\n"
              "   -e / --export <filename> ...  filename for exporting CCF_DATA as json\n"
-             "   -c / --ccf <ccf> ...........  ccf hexadecimal string to be decoded\n"
+             "   -c / --ccf <ccf> ...........  CCF hexadecimal string to be decoded\n"
              "   -d / --dump <filename>......  file to be decoded, this will override any -ccf setting\n"
              "   -m / --dump_format <format>.  format of dump data, valid options are:\n"
              "                                   cd = can_utils candump format (default)\n"
              "                                   st = a hexadecimal string\n"
-             "   -i / --can_id <canid>.......  canID (decimal) used in the can dump to broadcast CCF, default = 401\n\n"
+             "   -i / --can_id <canid>.......  canID (decimal) used in the can dump to broadcast CCF, default = 401 (JLR)\n\n"
              "XML file must be specified and either a string containing the CCF or a dump file to process\n")
 
 # The following are things that need to exist in order for this to work, so set them to None and we'll check if they get data shoved in them later

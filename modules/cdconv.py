@@ -15,7 +15,7 @@ def convdump(fn,canid):
     with open(fn) as cf:
         while True:
             # Read each line from the dump file
-            line = cf.readline()
+            line = cf.readline().upper()
             # When there are no more lines, stop
             if not line:
                 break
@@ -24,9 +24,7 @@ def convdump(fn,canid):
             
             # Remove the can ID and # in the process
             if c !=None: cm = c.group().replace(canid +'#','')
-            
-            crl = (len(ccfl))
-            
+         
             # The first two bytes is the sequence identifier, convert it from a string to a hex number and make it an int to use as the index
             # Note that the sequence goes from 01 but indexes go from 0, so take 1 away in order to put it in a list          
             idx = int('0x'+cm[:2],16)-1
@@ -37,6 +35,9 @@ def convdump(fn,canid):
             # Sometimes CAN messages can get lost so they might not be in the right order due to a resend
             # We need to make sure we reorder all the CCF messages by their sequence ID, going to use an indexed list for this
             # First check if the list is large enough to put the CCF data into, if not use insert to increase the size of the list
+            # Get the size of the ccfl list
+            crl = (len(ccfl))
+            
             if crl < idx + 1:
                 ccfl.insert(idx, dt)
             else:

@@ -2,7 +2,7 @@
 # Turn an SDD XML CCF_DATA files into an array of settings
 # This is a nightmarish mish mash of some confusing XML but it gets there in the end
 ###############################################################################
-
+import re
 import pandas as pd
 
 def sddxconv(root):
@@ -61,13 +61,20 @@ def sddxconv(root):
 
             # Push this into the options dataframe
             opt = opt.append(pd.DataFrame(optdata), ignore_index=True)
+        
+        # Sometimes the mask is messed up, it needs to be in 0x00 format, so lets get it and check its ok    
+        mk = tag.attrib['mask']
+        if not re.search('\A0x[A-F0-9]{2}\Z', mk):
+            print('mask is badly formatted, got', mk + ', normalising to ', end='')
+            mk = '0x'+(mk.lstrip('0x').zfill(2)).upper()
+            print(mk)
 
         # Put the setting data together
         data1 = {
             "offsets" : [offsets],
             "title": [title],
             "name": [tag.attrib['name']],
-            "mask" : [tag.attrib['mask']],
+            "mask" : [mk],
             "type" : [tag.attrib['type']],
             "options": [opt],
         }
