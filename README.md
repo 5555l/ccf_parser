@@ -2,22 +2,19 @@
 
 Decodes Ford/Volvo/JLR CCF messages taken from the canbus and tells you the current car configuration
 
-For this to work you must have the CCF_DATA EXML file for your vehicle and decrypted it
+For this to work you must have the CCF_DATA EXML file that matches your vehicle and decrypted it to an XML file
 
-ccfparser useage:
-   -x / --xml <filename> ......  SDD XML CCF_DATA file containing possible CCF values
+By default it must be given the CCF_DATA and the CCF to decode, output will be return to stdout as a string
 
-   -o / --output <filename> ...  filename for outputting the result, default is to stdout
+## ccfparser options
 
-   -c / --ccf <ccf> ...........  ccf hexadecimal string to be decoded
-
-   -d / --dump <filename>......  file to be decoded, this will override any -ccf setting.
-                                 Use this if you have the CCF as a string somewhere or a candump with it in
-
-   -m / --dump_format .........  format of dump data, valid options are:
-                                   cd = can_utils candump format (default)
-                                   st = a hexadecimal string
-
-   -i / --can_id...............  canID (decimal) used in the can dump to broadcast CCF, default = 401 (JLR)
-
-SDD XML file must be specified as well as either a string containing the CCF or a dump file to process
+| Option | Type | Description |
+|:------|:-----|:------------|
+|`-x / --xml <filename>`|XML file|SDD XML CCF_DATA file containing possible CCF values|
+|`-o / --output <filename>`|file|output the CCF settings result to a file, default is to stdout|
+|`-c / --ccf <ccf>`|string|a string of hexadecimal CCF values to be decoded|
+|`-d / --dump <filename>`|file|a file of hexadecimal CCF values to be decoded. This will override any -ccf setting, replacing any values provided in `-ccf`. Use this if you have the CCF as a string somewhere or a candump with it in|
+|`-m / --dump_format`|string| specifies the format of the data in the file in `--dump`, valid options are: `cd` = can_utils candump format (default) and `st` = a hexadecimal string|
+|`-i / --can_id`|string|canID (decimal) used in the can dump to broadcast CCF, default = `401` (JLR)|
+|`-j / --json`|operator|sets the CCF setting output file format to json, default is a string|
+|`-e / --export <filename>`|file|output the CCF_DATA options to a json file|

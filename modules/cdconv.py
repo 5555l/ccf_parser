@@ -1,12 +1,13 @@
-###############################################################################
-# Turn a candump into a CCF hexadecimal string
-# The format for this is (seconds.milliseconds) <can_interface> <can_id>#<sequence byte><7 bytes of data>
-# Only the <can_id> onwards matters for this to work
-###############################################################################
-
 import re
 
 def convdump(fn,canid):
+
+    ###############################################################################
+    # Turn a candump into a CCF hexadecimal string
+    # The format for this is (seconds.milliseconds) <can_interface> <can_id>#<sequence byte><7 bytes of data>
+    # Only the <can_id> onwards matters for this to work
+    ###############################################################################
+
     print('Processing CCF dump from', fn)
     ccfl = []
     

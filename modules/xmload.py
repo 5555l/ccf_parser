@@ -22,6 +22,7 @@ def sddxconv(root):
         offsets = tag.attrib['id'].replace('_','')
 
         # Grab the <parameter_title>, if there isn't set make it None 
+        title = None
         ptitle = tag.find('parameter_title')
         if ptitle != None: 
             # Sometimes there is no text for the title, but there is an id=, so use that if there is no text
@@ -34,8 +35,6 @@ def sddxconv(root):
                 title = t
             else:
                 title = d
-        else:
-            title = None
         
         # Create a dataframe for the options
         opt = pd.DataFrame(columns=OPTcols)
