@@ -11,11 +11,11 @@ from modules import xmload
 def findopt(optrow):
     if optrow.empty:
         op_conf='No valid setting found'
-    elif optrow['option'].iloc[0] != '':
+    elif optrow['tm'].iloc[0] != None:
+        op_conf=optrow['tm'].iloc[0]    
+    elif optrow['option'].iloc[0] != None:
         op_conf=optrow['option'].iloc[0]
-    elif optrow['tm'].iloc[0] != '':
-        op_conf=optrow['tm'].iloc[0]
-    elif optrow['tmid'].iloc[0] != '':
+    elif optrow['tmid'].iloc[0] != None:
         op_conf=optrow['tmid'].iloc[0]
     return op_conf
 
