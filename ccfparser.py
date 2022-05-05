@@ -111,9 +111,12 @@ else:
     print('Processed', ccf_data_file)
 
 ###############################################################################
-# If we've got this far then we have a CCF XML file to play with so now lets read in the CCF itself.
-# The job here is to have a normalised hexadeciaml string, start with checking if there is a dump file being used
-# Currently this only supports options of candump format or a hex string, but made it extenable for future use by other ways of catching the CCF on the can.
+# If we've got this far then we have the settings from a CCF_DATA XML file
+# to play with so now lets read in the CCF itself. The job here is to have a
+# normalised hexadeciaml string, start with checking if there is a dump file
+# being used. Currently this only supports options of candump format or a
+# hex string, but made it extenable for future use by other ways of catching 
+# the CCF on the can.
 ###############################################################################
 
 if ccf != None and dump == None and re.search('[^A-F0-9]', ccf) != None:
