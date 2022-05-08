@@ -27,31 +27,33 @@ full_cmd_arguments = sys.argv
 argument_list = full_cmd_arguments[1:]
 
 # set the command line options
-short_options = "hno:x:jno:o:e:c:f:d:m:i:r:t:"
-long_options = ["help", "xml=", "json", "output=", "export=", "ccfhex=", "ccf=", "dump=", "dump_format=", "can_id=", "readable=", "tdir="]
+short_options = "hno:x:jno:o:e:c:f:d:m:i:r:t:bno:"
+long_options = ["help", "xml=", "json", "output=", "export=", "ccfhex=", "ccf=", "dump=", "dump_format=", "can_id=", "readable=", "tdir=", "rebuild"]
 
 help_text = ("\nccfparser options:\n"
-             "   -x / --xml <filename> ......  SDD XML CCF_DATA file containing CCF options\n"
-             "   -j / --json ................  sets the CCF setting output file format to json, default is csv\n"
-             "   -o / --output <filename> ...  filename for outputting the result\n"
-             "   -e / --export <filename> ...  filename for exporting CCF_DATA as json\n"
-             "   -c / --ccfhex <ccf> ........  CCF hexadecimal string to be decoded\n"
+             "   -x / --xml <filename>.......  SDD XML CCF_DATA file containing CCF options\n"
+             "   -j / --json.................  sets the CCF setting output file format to json, default is csv\n"
+             "   -o / --output <filename>....  filename for outputting the result\n"
+             "   -e / --export <filename>....  filename for exporting CCF_DATA as json\n"
+             "   -c / --ccfhex <ccf>.........  CCF hexadecimal string to be decoded\n"
              "   -f / --ccf <filename>.......  filename for exporting CCF hex string\n"
-             "   -d / --dump <filename>......  file to be decoded, this will override any -ccf setting\n"
+             "   -d / --dump <filename>......  can dump file to be decoded, this will override any -ccf setting\n"
              "   -m / --dump_format <format>.  format of dump data, valid options are:\n"
              "                                   cd = can_utils candump format (default)\n"
              "                                   st = a hexadecimal string\n"
              "   -i / --can_id <canid>.......  canID (decimal) used in the can dump to broadcast CCF, default = 401 (JLR)\n\n"
-             "   -r / --readable <language>..  Use human readable values in the output.\n"
-             "                                 For this to work a settings cache must exist or -t must be set\n"
+             "   -r / --readable <language>..  Use human readable values of <language> the output.\n"
+             "                                 For this to work a settings cache must exist or -t must be set.\n"
+             "                                 <language> must be of type supported by SDD otherwise it defaults to 'eng'\n"
              "   -t / --tdir <directory>.....  Location of IDS/SDD/XML/text used to build human readable values\n"
-             "The CCF_DATA XML file must be specified along with either a string containing the CCF or a dump file to process.\n"
-             "If a human readable values cache is present it will convert CCF settings to English by default (equivalent to -r eng)\n")
+             "   -b / --rebuild..............  Rebuild the settings cache data, -t must also be set\n"
+             "The CCF_DATA XML file must be specified along with either a string containing the CCF or a dump file to process.\n")
 
 # The following are things that need to exist in order for this to work, so set them to None and we'll check if they get data shoved in them later
 ccf_data_file = None
 ccfout = of = ex = json = dump = tdir = None
 ccf = ccf_vr = None
+rbv = rebuild = False
 dumpf = "cd" # set this as default format
 ccfid = "401" # set this as a default canID for the CCF broadcast
 dlang = vlang = "eng" # set this as a default
@@ -96,12 +98,21 @@ for current_argument, current_value in arguments:
         ccfid = current_value
     elif current_argument in ("-r", "--readable"):
         vlang = current_value.lower()
+        rbv = True
     elif current_argument in ("-t", "--tdir"):
         tdir = current_value
+    elif current_argument in ("-r", "--rebuild"):
+        rebuild = True
 
 # We can't do anything unless we have the CCF_DATA XML and some CCF data to process, so check we have those
 if ccf_data_file == None or (ccf == None and dump == None):
     print("SSD XML CCF_DATA file must be specified along with either a string containing the CCF or a dump file to process")
+    print(help_text)
+    sys.exit(2)
+
+# Check we haven't been asked to rebuild the cache but forgotten to provide the tdir location
+if rebuild == True and tdir == None:
+    print("Rebuild requested but no target directory (--tdir) provided")
     print(help_text)
     sys.exit(2)
 
@@ -235,18 +246,21 @@ for set in ccf_set.index:
 # We now should have the car configuration 
 # If a values cache file exists use that to turn all the reference keys into 
 # natural language.
-
-if ccfdatavals.checkcache(cachefile):
+cache_present = False
+if ccfdatavals.checkcache(cachefile) == True and rbv == True and rebuild == False:
     # cache file exists so load the values
     print('Found cache file - loading values')
     ccf_vr=ccfdatavals.readcache(cachefile)
-elif tdir != None:
+    cache_present = True
+elif tdir != None or (ccfdatavals.checkcache(cachefile) == True and rebuild == True):
     # IDS/XML/text directory has been provided so attempt to build the cache
-    print('No cache file found but SDD directory provided, attempting to build new cache')
+    print('SDD directory provided, attempting to build new cache')
     ccfdatavals.buildcache(tdir,cachefile)
     ccf_vr=ccfdatavals.readcache(cachefile)
+    cache_present = True
 
-if ccf_vr.size != 0:
+# If we have values in ccf_vr that means somewhere we got asked to make things human readable
+if cache_present == True:
     # Lets try and translate the options settings into human readable words
     print('Attempting to convert tags to words using langauge', vlang)
     # First test that the lang setting makes sense
@@ -290,7 +304,6 @@ if ccf_vr.size != 0:
     # All done with translations!
 else:
     print('No language cache found and no SDD directory provided, skipping translating values step')
-
 
 # If an export has been requested, dump the CCF_DATA to a file
 
