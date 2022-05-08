@@ -23,27 +23,28 @@ def convdump(fn,canid):
             c = re.search(canid+'#[A-F0-9]{16}', line)
             
             # Remove the can ID and # in the process
-            if c !=None: cm = c.group().replace(canid +'#','')
+            if c !=None: 
+                cm = c.group().replace(canid +'#','')
          
-            # The first two bytes is the sequence identifier, convert it from a string to a hex number and make it an int to use as the index
-            # Note that the sequence goes from 01 but indexes go from 0, so take 1 away in order to put it in a list          
-            idx = int('0x'+cm[:2],16)-1
+                # The first two bytes is the sequence identifier, convert it from a string to a hex number and make it an int to use as the index
+                # Note that the sequence goes from 01 but indexes go from 0, so take 1 away in order to put it in a list          
+                idx = int('0x'+cm[:2],16)-1
 
-            # Shove the rest of the message in as data
-            dt = cm[2:16]
+                # Shove the rest of the message in as data
+                dt = cm[2:16]
 
-            # Sometimes CAN messages can get lost so they might not be in the right order due to a resend
-            # We need to make sure we reorder all the CCF messages by their sequence ID, going to use an indexed list for this
-            # First check if the list is large enough to put the CCF data into, if not use insert to increase the size of the list
-            # Get the size of the ccfl list
-            crl = (len(ccfl))
-            
-            if crl < idx + 1:
-                ccfl.insert(idx, dt)
-            else:
-                # If the list is already big enough, push the CCF data into its correct position.
-                # This will overwrite existing values where they are repeated broadcasts of the CCF in the can dump
-                ccfl[idx] = dt
+                # Sometimes CAN messages can get lost so they might not be in the right order due to a resend
+                # We need to make sure we reorder all the CCF messages by their sequence ID, going to use an indexed list for this
+                # First check if the list is large enough to put the CCF data into, if not use insert to increase the size of the list
+                # Get the size of the ccfl list
+                crl = (len(ccfl))
+                
+                if crl < idx + 1:
+                    ccfl.insert(idx, dt)
+                else:
+                    # If the list is already big enough, push the CCF data into its correct position.
+                    # This will overwrite existing values where they are repeated broadcasts of the CCF in the can dump
+                    ccfl[idx] = dt
 
     # Lets do some integrity checks to make sure it isn't total rubbish we've just made up and turn it into a string
     # Check the list entries one by one in order

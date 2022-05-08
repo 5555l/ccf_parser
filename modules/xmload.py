@@ -4,15 +4,21 @@
 ###############################################################################
 import re
 import pandas as pd
+from lxml import etree as ET
 
-def sddxconv(root):
+def sddxconv(xfn):
     # Set out the format of the dataframes we want to use
     CCFcols = ["offsets", "title", "name", "mask", "type", "options"]
     OPTcols = ["ccfval", "option", "tm", "tmid"]
     
+    # Load the XML CCF_DATA file
+    print('Loading', xfn)
+
+    root = ET.parse(xfn).getroot()
+
     tag = None 
     
-    # Initlise settings df
+    # Initialise settings df
     settings = pd.DataFrame(columns=CCFcols)
 
     # We're going to extract all the possible CCF options for this vehicle
@@ -22,24 +28,20 @@ def sddxconv(root):
         offsets = tag.attrib['id'].replace('_','')
 
         # Grab the <parameter_title>, if there isn't set make it None 
-        title = None
+        #title = None
         ptitle = tag.find('parameter_title')
         if ptitle != None: 
-            # Sometimes there is no text for the title, but there is an id=, so use that if there is no text
-            t = ptitle.find('tm').text
+            # Sometimes there is no id=, so use text if there instead
             try:
-                d = ptitle.find('tm').attrib['id']
+                title = ptitle.find('tm').attrib['id']
             except KeyError:
-                d = None
-            if t != None:
-                title = t
-            else:
-                title = d
-        
+                title = ptitle.find('tm').text
+        else:
+            title = None
         # Create a dataframe for the options
         opt = pd.DataFrame(columns=OPTcols)
 
-        # For each <parameter>, check if there are mulitple allowable <options> (sometimes there are none for a particular vehicle)
+        # For each <parameter>, check if there are multiple allowable <options> (sometimes there are none for a particular vehicle)
         for option in tag.findall('select/option'):
             value = option.attrib['value']
             optname = option.attrib['name']
@@ -65,7 +67,7 @@ def sddxconv(root):
         # Sometimes the mask is messed up, it needs to be in 0x00 format, so lets get it and check its ok    
         mk = tag.attrib['mask']
         if not re.search('\A0x[A-F0-9]{2}\Z', mk):
-            print('mask is badly formatted, got', mk + ', normalising to ', end='')
+            print('Mask appears badly formatted, got', mk + ', normalising to ', end='')
             mk = '0x'+(mk.lstrip('0x').zfill(2)).upper()
             print(mk)
 
