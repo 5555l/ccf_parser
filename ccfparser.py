@@ -402,7 +402,7 @@ if ex !=None:
     print('Exporting CCF_DATA to', ex)
     # Lets get rid of any old files from previous runs
     if os.path.exists(ex): os.remove(ex)
-    ccf_set.to_json(r''+ ex)
+    ccf_set.to_json(r''+ ex,index=False)
 
 # If an setting output filename is given then write it to the file
 if of != None:
@@ -411,9 +411,9 @@ if of != None:
     if os.path.exists(of): os.remove(of)
     # Default output is a csv, but optionally can be a json
     if json == True:
-        ve_config.to_json(r''+ of)
+        ve_config.to_json(r''+ of,index=False)
     else:
-        ve_config.to_csv(r''+ of)
+        ve_config.to_csv(r''+ of,index=False)
 else:
     # otherwise output to stdout
-    print(ve_config.to_string())
+    print(ve_config.to_string(index=False))
