@@ -1,6 +1,6 @@
 # ccfparser
 
-Decodes Ford/Volvo/JLR CCF messages taken from the canbus and tells you the current car configuration
+Decodes Ford/Volvo/JLR CCF messages taken from the canbus and tells you the current car configuration.
 
 As a minimum you must have the CCF_DATA EXML file that matches your vehicle and decrypted it to an XML file. This file can be discovered automatically or must be specified using `--xml` argument. It must be given the CCF to decode, by default output will be returned to stdout as a string. If a `VIN` is not specified it tries to grab it from the CCF directly itself.
 
