@@ -12,7 +12,7 @@ def sddxconv(xfn):
     OPTcols = ["ccfval", "option", "tm", "tmid"]
     
     # Load the XML CCF_DATA file
-    print('Loading', xfn)
+    print('Processing:', xfn)
 
     root = ET.parse(xfn).getroot()
 

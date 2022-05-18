@@ -6,8 +6,9 @@ import os
 import pandas as pd
 import numpy as np
 from modules import cdconv
-from modules import xmload
-from modules import ccfdatavals
+from modules import ccfdataload
+from modules import ccfdatatext
+from modules import vinload
 
 def findopt(optrow):
     if optrow.empty:
@@ -27,10 +28,10 @@ full_cmd_arguments = sys.argv
 argument_list = full_cmd_arguments[1:]
 
 # set the command line options
-short_options = "hno:x:jno:o:e:c:f:d:m:i:r:t:bno:"
-long_options = ["help", "xml=", "json", "output=", "export=", "ccfhex=", "ccf=", "dump=", "dump_format=", "can_id=", "readable=", "tdir=", "rebuild"]
+short_options = "hno:x:jno:o:e:c:f:d:m:i:l:t:bno:v:y:"
+long_options = ["help", "xml=", "json", "output=", "export=", "ccfhex=", "ccf=", "dump=", "dump_format=", "can_id=", "lang=", "tdir=", "rebuild", "vin=", "xdir="]
 
-help_text = ("\nccfparser options:\n"
+help_text = ("\noptions:\n"
              "   -x / --xml <filename>.......  SDD XML CCF_DATA file containing CCF options\n"
              "   -j / --json.................  sets the CCF setting output file format to json, default is csv\n"
              "   -o / --output <filename>....  filename for outputting the result\n"
@@ -42,24 +43,27 @@ help_text = ("\nccfparser options:\n"
              "                                   cd = can_utils candump format (default)\n"
              "                                   st = a hexadecimal string\n"
              "   -i / --can_id <canid>.......  canID (decimal) used in the can dump to broadcast CCF, default = 401 (JLR)\n\n"
-             "   -r / --readable <language>..  Use human readable values of <language> the output.\n"
+             "   -l / --lang <language>......  use human readable values in <language> in the output.\n"
              "                                 For this to work a settings cache must exist or -t must be set.\n"
              "                                 <language> must be of type supported by SDD otherwise it defaults to 'eng'\n"
-             "   -t / --tdir <directory>.....  Location of IDS/SDD/XML/text used to build human readable values\n"
-             "   -b / --rebuild..............  Rebuild the settings cache data, -t must also be set\n"
+             "   -t / --tdir <directory>.....  location of IDS/SDD/XML/text used to build human readable values\n"
+             "   -b / --rebuild..............  rebuild the settings cache data, -t must also be set\n"
+             "   -v / --vin <VIN>............  use manually provided VIN instead of automatically detecting it from the CCF\n"
+             "   -y / --xdir <directory>.....  location of IDS/XML where CCF_DATA, VINDECODE and VEHICLE_MANIFEST files are\n"
              "The CCF_DATA XML file must be specified along with either a string containing the CCF or a dump file to process.\n")
 
 # The following are things that need to exist in order for this to work, so set them to None and we'll check if they get data shoved in them later
 ccf_data_file = None
-ccfout = of = ex = json = dump = tdir = None
-ccf = ccf_vr = None
+ccfout = of = ex = json = dump = tdir = vin= xmlpath = manifest = None
+ccf = ccf_vr = model_data = None
 rbv = rebuild = False
 dumpf = "cd" # set this as default format
 ccfid = "401" # set this as a default canID for the CCF broadcast
 dlang = vlang = "eng" # set this as a default
 cachefile = ".__@values_cache__"
 
-# test for command line options
+#####################################################################################
+# Test for command line options
 try:
     arguments, values = getopt.getopt(argument_list, short_options, long_options)
 except getopt.error as err:
@@ -96,17 +100,23 @@ for current_argument, current_value in arguments:
         dumpf = current_value
     elif current_argument in ("-i", "--can_id"):
         ccfid = current_value
-    elif current_argument in ("-r", "--readable"):
+    elif current_argument in ("-l", "--lang"):
         vlang = current_value.lower()
         rbv = True
     elif current_argument in ("-t", "--tdir"):
         tdir = current_value
     elif current_argument in ("-r", "--rebuild"):
         rebuild = True
+    elif current_argument in ("-v", "--vin"):
+        vin = current_value
+    elif current_argument in ("-y", "--xdir"):
+        xmlpath = current_value
 
-# We can't do anything unless we have the CCF_DATA XML and some CCF data to process, so check we have those
-if ccf_data_file == None or (ccf == None and dump == None):
-    print("SSD XML CCF_DATA file must be specified along with either a string containing the CCF or a dump file to process")
+#####################################################################################
+# Thats the end of the boring arguments stuff, lets check what we've been asked to do makes sense
+# But we can't do anything unless we have the CCF_DATA XML and some CCF data to process, so check we have those
+if (ccf_data_file == None and xmlpath == None) or (ccf == None and dump == None):
+    print("SSD XML CCF_DATA file (--xml) or direcotry for XML files (--xdir) must be specified along with either a string containing the CCF or a dump file to process")
     print(help_text)
     sys.exit(2)
 
@@ -115,25 +125,6 @@ if rebuild == True and tdir == None:
     print("Rebuild requested but no target directory (--tdir) provided")
     print(help_text)
     sys.exit(2)
-
-# Convert the SDD CCF_DATA into a more useful array of settings 
-ccf_set = xmload.sddxconv(ccf_data_file)
-
-# Check if we got any CCF settings from the XML, if not throw a wobbly
-if ccf_set.empty:
-    print('ERROR: No CCF_DATA found in', ccf_data_file, '- aborting')
-    sys.exit(2)
-else:
-    print('Processed', ccf_data_file)
-
-###############################################################################
-# If we've got this far then we have the settings from a CCF_DATA XML file
-# to play with so now lets read in the CCF itself. The job here is to have a
-# normalised hexadecimal string, start with checking if there is a dump file
-# being used. Currently this only supports options of candump format or a
-# hex string, but made it extenable for future use by other ways of catching 
-# the CCF on the can.
-###############################################################################
 
 if ccf != None and dump == None and re.search('[^A-F0-9]', ccf) != None:
     # CCF was provided but seems to have something that isn't hex in it, no dump file was supplied either, so abort.
@@ -147,7 +138,7 @@ elif dump != None and dumpf == "cd":
     # dump file provided and candump format has been set so turn this into a long hexadecimal string
     ccf = cdconv.convdump(dump,ccfid)
 elif dump != None and dumpf == "st":
-    # # dump file provided and string format has been set so load it from a file
+    # dump file provided and string format has been set so load it from a file
     ccf_file = open(dump, "r")
     # read dump to a string
     ccf = ccf_file.read()
@@ -158,6 +149,8 @@ if ccf == None:
     print('CCF is empty, either no CCF data was found or incorrect canID was used - aborting')
     sys.exit(2)
 
+#####################################################################################
+# Ok, we seem to have enough to work with so lets have a go.
 # The CCF is currently a hex string but it needs to be broken into a list of bytes
 ccfhx = []
 strccf=ccf
@@ -172,16 +165,102 @@ while True:
     if strccf == '': 
         break
 
+# If the XML path is given find the VINDecode and Vehicle Manifest files needed
+if xmlpath != None:
+    # See if we can find the vindecode and manifest XML files
+    for root, dirs, files in os.walk(xmlpath):
+        for file in files:
+            if re.search('^VINDECODE\..*XML.*', file.upper()):
+                vinxml = os.path.join(root,file)
+            if re.search('^VEHICLE_MANIFEST\..*XML.*', file.upper()):
+                manifest = os.path.join(root,file)
+
+if vin == None and vinxml != None:
+    # First we're going to grab the VIN from the CCF and decode it to find out what vehicle we're dealing with
+    vinloc='003019000000' # This is the default for Jag, not sure how it knows this so its hardcoded atm
+    
+    vin_s = int(vinloc[:3]) # start of vin bytes
+    vin_e = int(vinloc[3:6]) # end of vin bytes
+
+    # Get the vin data from the CCF based on the offset
+    # python substring is an inclusive start but exclusive end position, so need to increment end byte by 1
+    vin_hex = ccfhx[vin_s:vin_e+1]
+    v_st = [str(i).zfill(2) for i in vin_hex]
+
+    # Check if the data looks anything like a VIN, it should be ascii codes for A-Z 0-9
+    vin_detect=False
+    for asc in v_st:
+        if int(asc,16) >= 48 and int(asc,16) <=90:
+            vin_detect = True
+        else:
+            vin_detect = False
+        if vin_detect == False: break
+
+    if vin_detect == True:
+        # Join the whole thing together and convert to ASCII
+        v_bta = bytearray.fromhex("".join(v_st))
+        vin = v_bta.decode()
+        print('Detected VIN:', vin)
+    else:
+        print('VIN not automatically detected, please provide manually - aborting')
+        sys.exit(2)
+
+# Get the model_info and date from the VINDecode XML file and find the correct data file
+if vin != None and vinxml != None:
+    model_info,model_data=vinload.vindecode(vin,vinxml)
+
+if model_info["Model"] != '' :
+    # pull the data together
+    model = model_info["Model"]
+    myear = model_data.loc[model_data["title_text"] == "ModelYear"]["setting_text"][1]
+    eng = model_data.loc[model_data["title_text"] == "Engine"]["setting_text"][1]
+    if model != '' and myear !='' and eng !='':
+        print('Found model:', model, 'year:', myear, 'engine:', eng)
+        mident={"Model":model,"ModelYear":myear, "Engine": eng, "Brand": model_info["Brand"]}
+
+        # If no CCF_DATA file is given, go and find the correct one - XML path must be set
+        if ccf_data_file == None and xmlpath != None:
+            # If there is no manifest already set go and find it.
+            if manifest == None:
+                if re.search('^VEHICLE_MANIFEST\..*XML.*', file.upper()): manifest = os.path.join(root,file)
+            
+            ve_manifest = vinload.findccfdataid(manifest,mident,vin)
+            ve_ccf = ve_manifest.get('XML_CCF_TEMPLATE')
+
+            # Now we know the CCF_DATA file we need see if we can find it in the file system
+            src_ccf = '^' + ve_manifest.get('XML_CCF_TEMPLATE').replace('.xml','') + '\..*XML.*'
+            for root, dirs, files in os.walk(xmlpath):
+                for file in files:
+                    if re.search(src_ccf.upper(), file.upper()):
+                        ccf_data_file = os.path.join(root,file)
+                        print('Found target CFF_DATA file:', ccf_data_file)
+        else:
+            print('No CCF data file given nor XML path - aborting')
+            sys.exit(2)
+    else:
+        print('Failed to find model, year and/or engine type from VIN')
+
+# Convert the SDD CCF_DATA into a more useful array of settings 
+ccf_set = ccfdataload.sddxconv(ccf_data_file)
+
+# Check if we got any CCF settings from the XML, if not throw a wobbly
+if ccf_set.empty:
+    print('ERROR: No CCF_DATA found in', ccf_data_file, '- aborting')
+    sys.exit(2)
+else:
+    print('Processed', ccf_data_file)
+
 ###############################################################################
 # Now for the fun bit, where we try to match the settings in the CCF values
 # We'll do this by iterating through the CCF_DATA, one by one and pulling the
 # values from the CCF to see what its set too
 ###############################################################################
 
-
-COLconfig = ["offsets", "mask", "ccfval", "title", "name", "setting"]
+# Create the arrays we're going to keep stuff in
+COLconfig = ["offsets", "mask", "ccfval", "title", "title_text","name", "setting","setting_text"]
 ve_config = pd.DataFrame(columns=COLconfig)
 
+# Process values against CCF_DATA
 for set in ccf_set.index:
     # Get the index location of this setting
     idx = ccf_set.index.get_loc(set)
@@ -222,6 +301,7 @@ for set in ccf_set.index:
     elif typ == "ENUM" or typ == "BOOL":
         # If its an enumerated list, the list of values is in the options, defined by bitmask the CCF value
         # If its a boolean its TRUE or FALSE, i.e. a maximum of two possible options per bit in the CCF byte defined by the mask
+        
         # First turn the values into an int
         cn = [str(i).zfill(2) for i in cs]
         ci = int("".join(cn),16)
@@ -230,9 +310,8 @@ for set in ccf_set.index:
         
         # Format it so that it looks like a hex string
         opk='0x'+(hex(opt_val).lstrip('0x').zfill(2)).upper()
-        # Go find out what option that is, reset the index 
-        # There might be lots of ways to describe the setting, try and find the best one
-        ve_conf=findopt(opts[opts["ccfval"] == opk].reset_index(drop=True))
+        # Go find out what option that is
+        ve_conf=findopt(opts[opts["ccfval"] == opk])
     elif typ == "BIN":
         # This holds some sort of value to be used, such as a delay time or target tyre pressure
         cn = [str(i).zfill(2) for i in cs]
@@ -240,23 +319,27 @@ for set in ccf_set.index:
         # Apply the mask to the CCF to see what option is set
         opt_val = np.bitwise_and(ci, msk)
         ve_conf = opt_val
-    # Store the config in the dataframe
+    # Store the ccf setting in the dataframe
     ve_config["setting"][idx] = ve_conf
 
+# Merge in information taken from model_data into the main ve_config and sort it
+if len(model_data) !=0:
+    ve_config = ve_config.append(model_data,ignore_index=True)
+    ve_config = ve_config.sort_values(by=["offsets"], ascending=True).reset_index(drop=True)
+
 # We now should have the car configuration 
-# If a values cache file exists use that to turn all the reference keys into 
+# If a values cache file exists and --lang is set use that to turn all the reference keys into 
 # natural language.
 cache_present = False
-if ccfdatavals.checkcache(cachefile) == True and rbv == True and rebuild == False:
+if ccfdatatext.checkcache(cachefile) == True and rbv == True and rebuild == False:
     # cache file exists so load the values
     print('Found cache file - loading values')
-    ccf_vr=ccfdatavals.readcache(cachefile)
+    ccf_vr=ccfdatatext.readcache(cachefile)
     cache_present = True
-elif tdir != None or (ccfdatavals.checkcache(cachefile) == True and rebuild == True):
+elif (tdir != None and rbv == True and ccfdatatext.checkcache(cachefile) == False) or (tdir != None and rbv == True and ccfdatatext.checkcache(cachefile) == True and rebuild == True):
     # IDS/XML/text directory has been provided so attempt to build the cache
-    print('SDD directory provided, attempting to build new cache')
-    ccfdatavals.buildcache(tdir,cachefile)
-    ccf_vr=ccfdatavals.readcache(cachefile)
+    print('IDS/SDD/XML/text directory provided, attempting to build new cache')
+    ccf_vr = ccfdatatext.buildcache(tdir,cachefile)
     cache_present = True
 
 # If we have values in ccf_vr that means somewhere we got asked to make things human readable
@@ -290,7 +373,7 @@ if cache_present == True:
             sv = ''
         if sv !='':
             # if we got some shove them into the dataframe
-            ve_config['setting'][stf] = tmid_lang[sv]
+            ve_config['setting_text'][stf] = tmid_lang[sv]
         
         # Do the same thing again but for the titles
         tval = ve_config['title'][stf]
@@ -300,7 +383,7 @@ if cache_present == True:
         except ValueError:
             tv = ''
         if tv !='':
-            ve_config['title'][stf] = tmid_lang[tv]
+            ve_config['title_text'][stf] = tmid_lang[tv]
     # All done with translations!
 else:
     print('No language cache found and no SDD directory provided, skipping translating values step')

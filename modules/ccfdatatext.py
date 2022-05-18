@@ -25,7 +25,7 @@ def buildcache(td,cf):
     ccf_hr = pd.DataFrame()
     # Go through every file we found
     print('Processing XML files, we may be some time....')
-    #fl = ["C:\\devtools\\JLR\\IDS\\Xml\\text\\\@E\\\@ENG_M57_DIESEL.XML"]
+
     for fn in fl:
         tree = et.parse(fn)
         root = tree.getroot()
@@ -57,9 +57,11 @@ def buildcache(td,cf):
     if os.path.exists(cf): os.remove(cf)
     
     print('\nFound',ccf_hr.size,'entries\nWriting to cache', cf)
+    # Write to the cache file
     ccf_hr.to_csv(r''+ cf)
-
-    return
+    # Read it back in again to make sure it works
+    cache = readcache(cf)
+    return (cache)
 
 def checkcache(cf):
     # Check if the cache file is present. 
@@ -89,7 +91,7 @@ if __name__ == '__main__':
     short_options = "hno:t:c:"
     long_options = ["help", "tdir=", "cache="]
 
-    help_text = ("\nccfdatavals options:\n"
+    help_text = ("\noptions:\n"
                 "   -t / --tdir <directory>......  Location of IDS/SDD/XML/text\n"
                 "   -c / --cache <filename>......  Filename for cache\n"
                 "All options are mandatory\n")
@@ -113,18 +115,19 @@ if __name__ == '__main__':
                 print('Directory not found or access denied at', dir,'- aborting')
                 sys.exit(2)
         elif current_argument in ("-c", "--cache"):
-            cache = current_value
+            cache_file = current_value
     
-    # We can't do anything unless we have the <SDD parent dir>IDS/XML/text and a cache file specified
+    # We can't do anything unless we have the <SDD parent dir>/IDS/XML/text and a cache file specified
     if dir == None :
         print("\nLocation of IDS/SDD/XML/text not provided - aborting\n\n")
         print(help_text)
         sys.exit(2)
-    if cache == None :
+    if cache_file == None :
         print("\nLocation of cache file not provided - aborting\n\n")
         print(help_text)
         sys.exit(2)
     
     # Build the cache 
-    buildcache(dir,cache)
+    cache = buildcache(dir,cache_file)
+    if len(cache) !=0: print('Built cache successfully')
     

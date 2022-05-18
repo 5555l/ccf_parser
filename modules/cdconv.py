@@ -64,3 +64,51 @@ def convdump(fn,canid):
             ccf=ccf+str(ccfl[cfd])
     # We're all done, we should now have a long string containing the CCF
     return ccf
+
+if __name__ == '__main__':
+    import sys
+    import getopt
+
+    # This will decode the VIN and tell you its options
+    cdump = canid = None
+
+    # Get full command-line arguments
+    full_cmd_arguments = sys.argv
+
+    # Keep all but the first
+    argument_list = full_cmd_arguments[1:]
+
+    # set the command line options
+    short_options = "d:i:"
+    long_options = ["dump=", "can_id="]
+
+    help_text = ("\noptions:\n"
+                "   -d / --dump <filename>......  can dump file to be decoded, this will override any -ccf setting\n"
+                "   -i / --can_id <canid>.......  canID (decimal) used in the can dump to broadcast CCF, default = 401 (JLR)\n")
+
+    # test for command line options
+    try:
+        arguments, values = getopt.getopt(argument_list, short_options, long_options)
+    except getopt.error as err:
+        # Output error, and return with an error code
+        print(str(err))
+        sys.exit(2)
+
+    # Evaluate given arguments
+    for current_argument, current_value in arguments:
+        if current_argument in ("-h", "--help"):
+            print(help_text)
+            sys.exit(2)
+        elif current_argument in ("-d", "--dump"):
+            cdump = current_value
+        elif current_argument in ("-i", "--can_id"):
+            can_id = current_value
+
+    # We can't do anything unless we have the argument set
+    if can_id == None or cdump == None:
+        print("\nEither --dump or --can_id not provided - aborting\n\n")
+        print(help_text)
+        sys.exit(2)
+
+    ccf=convdump(cdump,can_id)
+    print(ccf)
