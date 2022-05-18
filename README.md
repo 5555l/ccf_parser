@@ -56,3 +56,12 @@ Some of the modules can be executed independently of the main ccf_parser:
 * `ccfdatatext.py`: can build/rebuild the parameter reference cache.
 
 * `cdconv.py`: to extract the CCF from a candump log.
+
+---
+
+# Tested configurations
+
+| Brand | Range | Model Year |
+|:------|:-----|:------------|
+|Jaguar|X250|2008|
+|Jaguar|X250|2010|
