@@ -411,7 +411,7 @@ if of != None:
     if os.path.exists(of): os.remove(of)
     # Default output is a csv, but optionally can be a json
     if json == True:
-        ve_config.to_json(r''+ of,index=False)
+        ve_config.to_json(r''+ of)
     else:
         ve_config.to_csv(r''+ of,index=False)
 else:
