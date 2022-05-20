@@ -8,7 +8,7 @@ def convdump(fn,canid):
     # Only the <can_id> onwards matters for this to work
     ###############################################################################
 
-    print('Processing CCF dump from', fn)
+    print('Processing can dump', fn, 'for canid',canid)
     ccfl = []
     
     # Open the dump file

@@ -8,7 +8,7 @@ It can work out the correct CCF_DATA file to use and provide user friendly text 
 
 When trying to detect the vehicle automatically the `--xdir` argument must be set to where the CCF_DATA, VINDecode and VEHICLE_MANIFEST files are.
 
-By default it uses a CAN_ID of 401 to discover the CCF from a candump. This is the default ID for Jaguar medium speed CAN. Other ID's can be specified by using `--can_id`, this is always a decimal value. 
+By default it uses a CAN_ID of 401 to discover the CCF and 402 to discover the CCF_EUCD from a candump log. This is the default IDs for Jaguar medium speed CAN. Other ID's can be specified by using `--can_id`, this is always a hexadecimal value.
 
 ## ccfparser arguments
 
@@ -20,7 +20,8 @@ By default it uses a CAN_ID of 401 to discover the CCF from a candump. This is t
 |`-c / --ccfhex <ccf>`|string|CCF hexadecimal string to be decoded|
 |`-d / --dump <filename>`|file|can dump file to be decoded, this will override any -ccf setting -ccf setting, replacing any values provided in `-ccf`. Use this if you have the CCF as a string somewhere or a candump with it in|
 |`-m / --dump_format`|string|format of dump data, valid options are: `cd` = can_utils candump format (default) and `st` = a hexadecimal string|
-|`-i / --can_id`|decimal|canID used in the can dump to broadcast CCF, default = `401` (JLR MS CAN)|
+|`-i / --can_id`|string|canID used in the can dump to broadcast CCF, default = `401` (JLR MS CAN)|
+|`-u / --can_id_eucd`|string|canID used in the can dump to broadcast CCF_EUCD, default = `402` (JLR MS CAN)|
 |`-j / --json`|operator|sets the CCF setting output file format to json, default is csv|
 |`-e / --export <filename>`|file|output the CCF_DATA options to a json file|
 |`-l / --lang <language>`|string|Use human readable values of `<language>` the output. For this to work a settings cache must exist or `-t` must be set. `<language>` must be of type supported by SDD otherwise it defaults to `eng`|
@@ -41,9 +42,11 @@ Once it has a target CCF_DATA file to use (either from automatically detecting i
 
 To make the settings more readable it scans all of the files in `SDD/XML/text` to produce a lookup table of all the parameter references, to build this table `--tdir` argument must have been provided. This is quite an intensive task as there are thousands of files, so to save time in the future it stores the lookup table as a cache (`--tdir` is not needed if the cache exists).  Once it has this lookup table it converts the internal references to the human readable values, if an unsupported language is given it defaults to doing it in English.
 
-If it successfully decodes the CCF it will output it as a string to stdout. Optionally it can be exported to a csv file using `--output` instead, it can also be exported in json by adding the `--json` option.
+If it successfully decodes the CCF it will output it as a string to stdout. Optionally it can be exported to a csv file using `--output`, it can also be exported in json by adding the `--json` option.
 
-Optionally it can also export the discovered CCF to a file, this is useful if you simply have a candump log from the vehicle, as it will scan all the messages in the log to find the CCF for you.
+If there is an CCF_EUCD broadcast too, then it will repeat all of this for that data too.
+
+Optionally it can also export the discovered CCF to a file, this is useful if you simply have a candump log from the vehicle, as it will scan all the messages in the log to find the CCF for you. If it finds an CCF_EUCD too, it will export that with the suffix _eucd.
 
 ---
 
@@ -59,7 +62,7 @@ Some of the modules can be executed independently of the main ccf_parser:
 
 ---
 
-# Tested configurations
+## Tested configurations
 
 | Brand | Range | Model Year |
 |:------|:-----|:------------|

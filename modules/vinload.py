@@ -29,7 +29,7 @@ def checkchar(cp,vn):
     return test
 
 def vindecode(vin,dx):
-    vincols = ["offsets", "mask", "ccfval", "title", "title_text","name", "setting","setting_text"]
+    vincols = ["src","offsets", "mask", "ccfval", "title", "title_text","name", "setting","setting_text"]
     vin=vin.upper()
 
     # Load the XML VINdecode file
@@ -69,7 +69,7 @@ def vindecode(vin,dx):
                     is_model = False
 
             # As soon as anything is false, this isn't our model, so move on.
-            if is_model != True:
+            if is_model == False:
                 break
         # If we find a matching model then store that and exit
         if is_model == True:
@@ -87,7 +87,7 @@ def vindecode(vin,dx):
         for decm in root.findall("Decodes/DecodeModel[@id='" + model + "']/Attribute"):
             name = decm.attrib['Name']
             try:
-                decode = decm.attrib['Decode']
+                decode = decm.attrib['Decode'].strip()
             except KeyError:
                 decode = ''
             try:
@@ -96,16 +96,19 @@ def vindecode(vin,dx):
                 char_val = ''
 
             tdv=pd.DataFrame(columns=vincols,index=[1])
+
             # If there is a char set then need to compare it to the vin            
             if char_val != '':
                 val = checkchar(char_val,vin)
-                decode = decm.find("Value[@Value='" + val + "']").attrib['Decode']
+                decode = decm.find("Value[@Value='" + val + "']").attrib['Decode'].strip()
                 oft = vinchar(char_val)
+                
                 # Work out the offsets
                 vin_oft = str(oft[0]).zfill(3) + str(oft[1]).zfill(3) + str((((oft[1]-oft[0])+1)*8-1)).zfill(6) 
                 
                 tdv["offsets"][1] = vin_oft
                 tdv["mask"][1] = "0xFF"
+                
                 # Check if its more than one character, if so split it into single characters; always store it in ASCII
                 if len(val) >= 2:
                     lst=[]
@@ -124,7 +127,7 @@ def vindecode(vin,dx):
     else:
         print('No model found - aborting')
         sys.exit(2)
-
+    model_data["src"] = "CCF"
     return (model_info,model_data)
 
 def findccfdataid(manf,mident,vin):
@@ -133,7 +136,8 @@ def findccfdataid(manf,mident,vin):
 
     # Find a tag that matches the brand 
     
-    is_model = manifest_id = False
+    is_model = False
+    manifest_id = None
 
     for tag in root.findall("vehicle_range[@brand='" + mident["Brand"].lower() + "']/vehicle"):
 
@@ -141,7 +145,7 @@ def findccfdataid(manf,mident,vin):
         try:
             tag.find("model[@id='" + mident["Model"] + "']").attrib['id'] == mident["Model"]
         except AttributeError:
-            break
+            continue
         
         for vrnt in tag.findall('variant'):
             # Check the VIN range for the variant
@@ -158,19 +162,21 @@ def findccfdataid(manf,mident,vin):
 
             # For each <decode>, get the rules that decide what the model is
             for cdf in vrnt.findall('vin/decode/attribute'):
+                my_gt = False
                 opt = cdf.attrib['decode'].upper()
                 name = cdf.attrib['name']
                 val = cdf.attrib['value'].upper()
+                mtype = cdf.attrib['type']
+
+                # Not sure how type 2 works, seems to be if its singular is means equal or greater than, if its a list then its any of those
+                if mtype == "2" and name == "ModelYear" and ";" not in val:
+                    if int(mident[name]) >= int(val):
+                        my_gt = True
 
                 # Test this against what we got from decoding the VIN         
                 if opt == 'TRUE':
-                    # Test is positive match
-                    if mident[name].upper() in val:
-                        is_model = True
-                    else:
-                        is_model = False
-                elif opt == 'FALSE':
-                    if not mident[name].upper() in val:
+                    # Test is positive match 
+                    if mident[name].upper() in val or my_gt == True:
                         is_model = True
                     else:
                         is_model = False
@@ -180,7 +186,9 @@ def findccfdataid(manf,mident,vin):
                 manifest_id=vrnt.find('file_manifest').attrib['id']
                 print('Found model in manifest')
                 break
-        if is_model == False:
+            is_model = False
+
+        if manifest_id == None:
             print('No models found')
     
     # If we found a manifest_id, go and find all the files we need to actually read what the CCF means
@@ -188,15 +196,21 @@ def findccfdataid(manf,mident,vin):
         manifest_info={}
         # Look for the matching manifest_id section and collect all the file data needed
         for fmt in root.findall("file_manifest/manifest[@id='" + manifest_id + "']/file"):
-            manifest_info.update({fmt.attrib['type']:fmt.text})        
+            manifest_info.update({fmt.attrib['type']:fmt.text})  
+    else:
+        manifest_info = None
+        print('Failed to find manifest data')
+
     return (manifest_info)
 
 if __name__ == '__main__':
     import sys
     import getopt
+    import re
+    import os
 
     # This will decode the VIN and tell you its options
-    vin = xf = None
+    vin = vinxml = xmlpath = None
 
     # Get full command-line arguments
     full_cmd_arguments = sys.argv
@@ -205,12 +219,13 @@ if __name__ == '__main__':
     argument_list = full_cmd_arguments[1:]
 
     # set the command line options
-    short_options = "hno:v:"
-    long_options = ["help", "vin="]
+    short_options = "hno:v:7:"
+    long_options = ["help", "vin=", "xdir="]
 
     help_text = ("\noptions:\n"
                 "   -v / --vin <string>..........  VIN to decode (mandatory)\n"
-                "   -x / --xml <filename>........  VINDecode XML file\n")
+                "   -x / --xml <filename>........  VINDecode XML file\n"
+                "   -y / --xdir <directory>.....  location of IDS/XML where CCF_DATA, VINDECODE and VEHICLE_MANIFEST files are\n")
 
     # test for command line options
     try:
@@ -228,15 +243,36 @@ if __name__ == '__main__':
         elif current_argument in ("-v", "--vin"):
             vin = current_value
         elif current_argument in ("-x", "--xml"):
-            xf = current_value
+            vinxml = current_value
+        elif current_argument in ("-y", "--xdir"):
+            xmlpath = current_value
 
     # We can't do anything unless we have the VIN
-    if vin == None or xf == None:
+    if vin == None or (vinxml == None and xmlpath == None):
         print("\nEither VIN or XML file not provided - aborting\n\n")
         print(help_text)
         sys.exit(2)
 
-        # decode the vin
-    model_info,model_data=vindecode(vin, xf)
+    for root, dirs, files in os.walk(xmlpath):
+        for file in files:
+            if re.search('^VINDECODE\..*XML.*', file.upper()):
+                vinxml = os.path.join(root,file)
+            if re.search('^VEHICLE_MANIFEST\..*XML.*', file.upper()):
+                manifest = os.path.join(root,file)
+    
+    # decode the vin
+    model_info,model_data=vindecode(vin, vinxml)
     print(model_info)
     print(model_data)
+
+    if manifest != None: 
+        model = model_info["Model"]
+        myear = model_data.loc[model_data["title_text"] == "ModelYear"]["setting_text"][1]
+        eng = model_data.loc[model_data["title_text"] == "Engine"]["setting_text"][1]
+        mident={"Model":model,"ModelYear":myear, "Engine": eng, "Brand": model_info["Brand"]}
+        ve_manifest = findccfdataid(manifest,mident,vin)
+        if ve_manifest != None:
+            ve_ccf = ve_manifest.get('XML_CCF_TEMPLATE')
+            print('Manifest:', ve_ccf)
+        else:
+            print('ended with no manifest')

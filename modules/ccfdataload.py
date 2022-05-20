@@ -6,13 +6,13 @@ import re
 import pandas as pd
 from lxml import etree as ET
 
-def sddxconv(xfn):
+def param(xfn,type):
     # Set out the format of the dataframes we want to use
-    CCFcols = ["offsets", "title", "name", "mask", "type", "options"]
-    OPTcols = ["ccfval", "option", "tm", "tmid"]
+    CCFcols = ["src", "offsets", "title", "title_text", "name", "mask", "type", "options"]
+    OPTcols = ["ccfval", "option", "tm", "tmid", "code"]
     
     # Load the XML CCF_DATA file
-    print('Processing:', xfn)
+    print('Processing:', xfn, 'for',type,'data')
 
     root = ET.parse(xfn).getroot()
 
@@ -22,8 +22,8 @@ def sddxconv(xfn):
     settings = pd.DataFrame(columns=CCFcols)
 
     # We're going to extract all the possible CCF options for this vehicle
-    # Start by finding the <parameters> in CCF section of the XML file
-    for tag in root.findall("block[@name='CCF']/group/parameter"):
+    # Start by finding the <parameters> in CCF section of the XML file [@name='" + type + "']
+    for tag in root.findall("block[@name='" + type + "']/group/parameter"):
          # Get the attributes of the <parameters> for this vehicle type
         offsets = tag.attrib['id'].replace('_','')
 
@@ -35,9 +35,15 @@ def sddxconv(xfn):
             try:
                 title = ptitle.find('tm').attrib['id']
             except KeyError:
-                title = ptitle.find('tm').text
+                title_text = ptitle.find('tm').text
         else:
-            title = None
+            # Lets try and grab the title from the group instead
+            try:
+                title = root.find(("block[@name='" + type + "']/group[@start='" + str(int(offsets[:3])) + "'][@stop='" + str(int(offsets[3:6])) + "']/title/tm")).attrib['id']
+                title_text = None
+            except KeyError:
+                title = None
+                title_text = root.find(("block[@name='" + type + "']/group[@start='" + str(int(offsets[:3])) + "'][@stop='" + str(int(offsets[3:6])) + "']/title/tm")).text
         # Create a dataframe for the options
         opt = pd.DataFrame(columns=OPTcols)
 
@@ -45,6 +51,14 @@ def sddxconv(xfn):
         for option in tag.findall('select/option'):
             value = option.attrib['value']
             optname = option.attrib['name']
+            if type == "EUCD":
+                #print(offsets)
+                try:
+                    code = option.attrib['code']
+                except KeyError:
+                    code = None
+            else:
+                code = None
 
             # Check if there is a <tm> element (it sometimes has more human readable version of the option)
             tmtext = option.find('tm').text
@@ -59,6 +73,7 @@ def sddxconv(xfn):
                 "option": [optname],
                 "tm": [tmtext],
                 "tmid" : [tmid],
+                "code" : [code]
             }
 
             # Push this into the options dataframe
@@ -73,8 +88,10 @@ def sddxconv(xfn):
 
         # Put the setting data together
         data1 = {
+            "src": type,
             "offsets" : [offsets],
             "title": [title],
+            "title_text": title_text,
             "name": [tag.attrib['name']],
             "mask" : [mk],
             "type" : [tag.attrib['type']],

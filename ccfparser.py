@@ -21,6 +21,20 @@ def findopt(optrow):
         op_conf=optrow['option'].iloc[0]
     return op_conf
 
+def ccf_to_bytes(strccf):
+    c_bytes = []
+    while True:
+        # Grab first two characters in the string
+        c = strccf[0:2]
+        # Append them to lhx as a byte
+        c_bytes.append(c)
+        # drop the first two characters from the string
+        strccf = strccf[2:]
+        # Repeat until there are no more characters left in the string
+        if strccf == '': 
+            break
+    return(c_bytes)
+
 # Get full command-line arguments
 full_cmd_arguments = sys.argv
 
@@ -28,8 +42,8 @@ full_cmd_arguments = sys.argv
 argument_list = full_cmd_arguments[1:]
 
 # set the command line options
-short_options = "hno:x:jno:o:e:c:f:d:m:i:l:t:bno:v:y:"
-long_options = ["help", "xml=", "json", "output=", "export=", "ccfhex=", "ccf=", "dump=", "dump_format=", "can_id=", "lang=", "tdir=", "rebuild", "vin=", "xdir="]
+short_options = "hno:x:jno:o:e:c:f:d:m:i:u:l:t:bno:v:y:"
+long_options = ["help", "xml=", "json", "output=", "export=", "ccfhex=", "ccf=", "dump=", "dump_format=", "can_id=", "can_id_eucd=", "lang=", "tdir=", "rebuild", "vin=", "xdir="]
 
 help_text = ("\noptions:\n"
              "   -x / --xml <filename>.......  SDD XML CCF_DATA file containing CCF options\n"
@@ -42,7 +56,8 @@ help_text = ("\noptions:\n"
              "   -m / --dump_format <format>.  format of dump data, valid options are:\n"
              "                                   cd = can_utils candump format (default)\n"
              "                                   st = a hexadecimal string\n"
-             "   -i / --can_id <canid>.......  canID (decimal) used in the can dump to broadcast CCF, default = 401 (JLR)\n\n"
+             "   -i / --can_id <canid>.......  canID used in the can dump to broadcast CCF, default = 401 (JLR)\n"
+             "   -u / --can_id_eucd <canid>..  canID used in the can dump to broadcast CCF_EUCD, default = 402 (JLR)\n"
              "   -l / --lang <language>......  use human readable values in <language> in the output.\n"
              "                                 For this to work a settings cache must exist or -t must be set.\n"
              "                                 <language> must be of type supported by SDD otherwise it defaults to 'eng'\n"
@@ -55,10 +70,11 @@ help_text = ("\noptions:\n"
 # The following are things that need to exist in order for this to work, so set them to None and we'll check if they get data shoved in them later
 ccf_data_file = None
 ccfout = of = ex = json = dump = tdir = vin= xmlpath = manifest = None
-ccf = ccf_vr = model_data = None
+ccf = ccf_vr = model_data = ccf_eucd= None
 rbv = rebuild = False
 dumpf = "cd" # set this as default format
 ccfid = "401" # set this as a default canID for the CCF broadcast
+ccfeucdid = "402" # set this as a default canID for the CCF_EUCD broadcast
 dlang = vlang = "eng" # set this as a default
 cachefile = ".__@values_cache__"
 
@@ -100,6 +116,8 @@ for current_argument, current_value in arguments:
         dumpf = current_value
     elif current_argument in ("-i", "--can_id"):
         ccfid = current_value
+    elif current_argument in ("-u", "--can_id_eucd"):
+        ccfeucdid = current_value
     elif current_argument in ("-l", "--lang"):
         vlang = current_value.lower()
         rbv = True
@@ -116,7 +134,7 @@ for current_argument, current_value in arguments:
 # Thats the end of the boring arguments stuff, lets check what we've been asked to do makes sense
 # But we can't do anything unless we have the CCF_DATA XML and some CCF data to process, so check we have those
 if (ccf_data_file == None and xmlpath == None) or (ccf == None and dump == None):
-    print("SSD XML CCF_DATA file (--xml) or direcotry for XML files (--xdir) must be specified along with either a string containing the CCF or a dump file to process")
+    print("SSD XML CCF_DATA file (--xml) or directory for XML files (--xdir) must be specified along with either a string containing the CCF or a dump file to process")
     print(help_text)
     sys.exit(2)
 
@@ -137,6 +155,8 @@ elif ccf == None and (dump == None or os.path.isfile(dump) == False):
 elif dump != None and dumpf == "cd":
     # dump file provided and candump format has been set so turn this into a long hexadecimal string
     ccf = cdconv.convdump(dump,ccfid)
+    # See if we can find the EUCD settings from the dump file too
+    ccf_eucd = cdconv.convdump(dump,ccfeucdid)
 elif dump != None and dumpf == "st":
     # dump file provided and string format has been set so load it from a file
     ccf_file = open(dump, "r")
@@ -146,24 +166,16 @@ elif dump != None and dumpf == "st":
 
 # Check we got something in the CCF string to play with
 if ccf == None:
-    print('CCF is empty, either no CCF data was found or incorrect canID was used - aborting')
+    print('CCF is empty, either no CCF data was found or incorrect canID was used')
     sys.exit(2)
+if ccf_eucd == None:
+    print('No EUCD data found - skipping EUCD data extraction')
 
 #####################################################################################
 # Ok, we seem to have enough to work with so lets have a go.
-# The CCF is currently a hex string but it needs to be broken into a list of bytes
-ccfhx = []
-strccf=ccf
-while True:
-    # Grab first two characters in the string
-    c = strccf[0:2]
-    # Append them to lhx as a byte
-    ccfhx.append(c)
-    # drop the first two characters from the string
-    strccf = strccf[2:]
-    # Repeat until there are no more characters left in the string
-    if strccf == '': 
-        break
+# The CCF is currently a long string but it needs to be broken into a list of bytes
+ccfhx = ccf_to_bytes(ccf)
+if ccf_eucd != None: eucdhx = ccf_to_bytes(ccf_eucd)
 
 # If the XML path is given find the VINDecode and Vehicle Manifest files needed
 if xmlpath != None:
@@ -177,7 +189,7 @@ if xmlpath != None:
 
 if vin == None and vinxml != None:
     # First we're going to grab the VIN from the CCF and decode it to find out what vehicle we're dealing with
-    vinloc='003019000000' # This is the default for Jag, not sure how it knows this so its hardcoded atm
+    vinloc='003019000135' # This is the default for Jag, not sure how it knows this so its hardcoded atm
     
     vin_s = int(vinloc[:3]) # start of vin bytes
     vin_e = int(vinloc[3:6]) # end of vin bytes
@@ -205,7 +217,8 @@ if vin == None and vinxml != None:
         print('VIN not automatically detected, please provide manually - aborting')
         sys.exit(2)
 
-# Get the model_info and date from the VINDecode XML file and find the correct data file
+#####################################################################################
+# Next get the model_info and date from the VINDecode XML file and find the correct data file
 if vin != None and vinxml != None:
     model_info,model_data=vinload.vindecode(vin,vinxml)
 
@@ -219,10 +232,7 @@ if model_info["Model"] != '' :
         mident={"Model":model,"ModelYear":myear, "Engine": eng, "Brand": model_info["Brand"]}
 
         # If no CCF_DATA file is given, go and find the correct one - XML path must be set
-        if ccf_data_file == None and xmlpath != None:
-            # If there is no manifest already set go and find it.
-            if manifest == None:
-                if re.search('^VEHICLE_MANIFEST\..*XML.*', file.upper()): manifest = os.path.join(root,file)
+        if ccf_data_file == None and xmlpath != None and manifest != None:
             
             ve_manifest = vinload.findccfdataid(manifest,mident,vin)
             ve_ccf = ve_manifest.get('XML_CCF_TEMPLATE')
@@ -235,20 +245,26 @@ if model_info["Model"] != '' :
                         ccf_data_file = os.path.join(root,file)
                         print('Found target CFF_DATA file:', ccf_data_file)
         else:
-            print('No CCF data file given nor XML path - aborting')
+            print('Can not process manifest: no CCF data file given, manifest detected or XML path set')
             sys.exit(2)
     else:
         print('Failed to find model, year and/or engine type from VIN')
+        sys.exit(2)
 
+#####################################################################################
 # Convert the SDD CCF_DATA into a more useful array of settings 
-ccf_set = ccfdataload.sddxconv(ccf_data_file)
+ccf_set = ccfdataload.param(ccf_data_file,"CCF")
 
 # Check if we got any CCF settings from the XML, if not throw a wobbly
 if ccf_set.empty:
     print('ERROR: No CCF_DATA found in', ccf_data_file, '- aborting')
     sys.exit(2)
 else:
-    print('Processed', ccf_data_file)
+    # See if we also need to grab the CCF_EUCD data and if so go and get them
+    if ccf_eucd !=None: 
+        ccf_set = ccf_set.append(ccfdataload.param(ccf_data_file,"EUCD"),ignore_index=True)
+
+print('Processed', ccf_data_file)
 
 ###############################################################################
 # Now for the fun bit, where we try to match the settings in the CCF values
@@ -257,7 +273,7 @@ else:
 ###############################################################################
 
 # Create the arrays we're going to keep stuff in
-COLconfig = ["offsets", "mask", "ccfval", "title", "title_text","name", "setting","setting_text"]
+COLconfig = ["src", "offsets", "mask", "ccfval", "title", "title_text","name", "setting","setting_text"]
 ve_config = pd.DataFrame(columns=COLconfig)
 
 # Process values against CCF_DATA
@@ -266,19 +282,24 @@ for set in ccf_set.index:
     idx = ccf_set.index.get_loc(set)
     # Grab the setting options
     ofs = ccf_set["offsets"][idx]
+    src = ccf_set['src'][idx]
     # Make sure it knows the mask is a hex value
     msk = int(ccf_set["mask"][idx], 16)
     opts = ccf_set["options"][idx]
     typ = ccf_set["type"][idx]
+
 
     # Data offsets in CCF are as follows:
     # nnn nnn nnn nnn = 'start byte' 'end byte' 'start bit' 'end bit'
     sb = int(ofs[:3]) # start byte in CCF
     eb = int(ofs[3:6]) # end byte in CCF
     
-    # Get the relevent data from the CCF based on the offset
+    # Get the relevent data from the CCF based on the offset and source (CCF/CCF_EUCD)
     # python substring is an inclusive start but exclusive end position, so need to increment end byte by 1
-    cs = ccfhx[sb:eb+1]
+    if src == "CCF":
+        cs = ccfhx[sb:eb+1]
+    elif src == "EUCD":
+        cs = eucdhx[sb:eb+1]
 
     # Put the things we know into the configuration
     ve_config.loc[idx] = ccf_set.loc[idx]
@@ -320,12 +341,16 @@ for set in ccf_set.index:
         opt_val = np.bitwise_and(ci, msk)
         ve_conf = opt_val
     # Store the ccf setting in the dataframe
-    ve_config["setting"][idx] = ve_conf
+    if "@" in str(ve_conf):
+        ve_config["setting"][idx] = ve_conf
+    else: 
+        ve_config["setting_text"][idx] = ve_conf
+    ve_config["src"][idx] = src
 
 # Merge in information taken from model_data into the main ve_config and sort it
 if len(model_data) !=0:
     ve_config = ve_config.append(model_data,ignore_index=True)
-    ve_config = ve_config.sort_values(by=["offsets"], ascending=True).reset_index(drop=True)
+    ve_config = ve_config.sort_values(by=["src","offsets"], ascending=True).reset_index(drop=True)
 
 # We now should have the car configuration 
 # If a values cache file exists and --lang is set use that to turn all the reference keys into 
@@ -372,7 +397,7 @@ if cache_present == True:
         except ValueError:
             sv = ''
         if sv !='':
-            # if we got some shove them into the dataframe
+            # if we got some data shove them into the dataframe
             ve_config['setting_text'][stf] = tmid_lang[sv]
         
         # Do the same thing again but for the titles
@@ -391,12 +416,17 @@ else:
 # If an export has been requested, dump the CCF_DATA to a file
 
 if ccfout !=None:
-    print('Exporting CCF hex string to', ccfout)
+    print('Exporting CCF hex string')
     # Lets get rid of any old files from previous runs
     if os.path.exists(ccfout): os.remove(ccfout)
     f = open(ccfout, "w")
     f.write(ccf)
     f.close()
+    if ccf_eucd != None:
+        if os.path.exists(ccfout + '_eucd'): os.remove(ccfout)
+        f = open(ccfout + '_eucd', "w")
+        f.write(ccf_eucd)
+        f.close()
 
 if ex !=None:
     print('Exporting CCF_DATA to', ex)
