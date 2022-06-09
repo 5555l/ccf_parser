@@ -225,7 +225,7 @@ if __name__ == '__main__':
     help_text = ("\noptions:\n"
                 "   -v / --vin <string>..........  VIN to decode (mandatory)\n"
                 "   -x / --xml <filename>........  VINDecode XML file\n"
-                "   -y / --xdir <directory>.....  location of IDS/XML where CCF_DATA, VINDECODE and VEHICLE_MANIFEST files are\n")
+                "   -y / --xdir <directory>......  location of IDS/XML where CCF_DATA, VINDECODE and VEHICLE_MANIFEST files are\n")
 
     # test for command line options
     try:
