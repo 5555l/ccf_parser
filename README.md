@@ -38,15 +38,15 @@ When detecting the VIN and CCF_DATA automatically it starts by extracting the `V
 
 It then uses the `VIN`, `Model`, `ModelYear` and `Engine` in the VEHICLE_MANIFEST XML to find the `variant_id`, and in turn uses that to find out which CCF_DATA file matches the vehicle.
 
-Once it has a target CCF_DATA file to use (either from automatically detecting it or specified by `--xml` argument) it parses all of the CCF to discover the vehicle settings. By default this produces some cryptic values which are internal SDD references and not that obvious. Optionally it turn these into human readable values in any language supported by SDD.
+Once it has a target CCF_DATA file to use (either from automatically detecting it or specified by `--xml` argument) it parses all of the CCF to discover the vehicle settings. By default this produces some cryptic values which are internal SDD references and not that obvious. Optionally it can turn these into human readable values in any language supported by SDD.
 
 To make the settings more readable it scans all of the files in `SDD/XML/text` to produce a lookup table of all the parameter references, to build this table `--tdir` argument must have been provided. This is quite an intensive task as there are thousands of files, so to save time in the future it stores the lookup table as a cache (`--tdir` is not needed if the cache exists).  Once it has this lookup table it converts the internal references to the human readable values, if an unsupported language is given it defaults to doing it in English.
 
 If it successfully decodes the CCF it will output it as a string to stdout. Optionally it can be exported to a csv file using `--output`, it can also be exported in json by adding the `--json` option.
 
-If there is an CCF_EUCD broadcast too, then it will repeat all of this for that data too.
+If there is an CCF_EUCD broadcast, then it will repeat all of this for that data too.
 
-Optionally it can also export the discovered CCF to a file, this is useful if you simply have a candump log from the vehicle, as it will scan all the messages in the log to find the CCF for you. If it finds an CCF_EUCD too, it will export that with the suffix _eucd.
+Optionally it can also export the discovered CCF to a file, this is useful if you simply have a candump log from the vehicle, as it will scan all the messages in the candump log to find the CCF for you. If it finds an CCF_EUCD, it will export that with the suffix _eucd.
 
 ---
 
