@@ -77,7 +77,7 @@ def param(xfn,type):
             }
 
             # Push this into the options dataframe
-            opt = opt.append(pd.DataFrame(optdata), ignore_index=True)
+            opt = pd.concat([opt, pd.DataFrame(optdata)], ignore_index=True)
         
         # Sometimes the mask is messed up, it needs to be in 0x00 format, so lets get it and check its ok    
         mk = tag.attrib['mask']
@@ -100,7 +100,7 @@ def param(xfn,type):
         # Create a df in the same format as the settings df
         cfs = pd.DataFrame(data1, columns=CCFcols)
         # Append the found settings to the settings df
-        settings = settings.append(cfs, ignore_index=True)
+        settings = pd.concat([settings, cfs], ignore_index=True)
     
-    # We're all done here, we should no have a big dataframe of settings to play with
+    # We're all done here, we should now have a big dataframe of settings to play with
     return settings

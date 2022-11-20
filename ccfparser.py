@@ -262,7 +262,7 @@ if ccf_set.empty:
 else:
     # See if we also need to grab the CCF_EUCD data and if so go and get them
     if ccf_eucd !=None: 
-        ccf_set = ccf_set.append(ccfdataload.param(ccf_data_file,"EUCD"),ignore_index=True)
+        ccf_set = pd.concat([ccf_set, ccfdataload.param(ccf_data_file,"EUCD")],ignore_index=True)
 
 print('Processed', ccf_data_file)
 
@@ -294,7 +294,7 @@ for set in ccf_set.index:
     sb = int(ofs[:3]) # start byte in CCF
     eb = int(ofs[3:6]) # end byte in CCF
     
-    # Get the relevent data from the CCF based on the offset and source (CCF/CCF_EUCD)
+    # Get the relevant data from the CCF based on the offset and source (CCF/CCF_EUCD)
     # python substring is an inclusive start but exclusive end position, so need to increment end byte by 1
     if src == "CCF":
         cs = ccfhx[sb:eb+1]
@@ -349,7 +349,7 @@ for set in ccf_set.index:
 
 # Merge in information taken from model_data into the main ve_config and sort it
 if len(model_data) !=0:
-    ve_config = ve_config.append(model_data,ignore_index=True)
+    ve_config = pd.concat([ve_config, model_data] ,ignore_index=True)
     ve_config = ve_config.sort_values(by=["src","offsets"], ascending=True).reset_index(drop=True)
 
 # We now should have the car configuration 

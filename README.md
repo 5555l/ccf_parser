@@ -2,7 +2,7 @@
 
 Decodes Ford/Volvo/JLR CCF messages taken from the canbus and tells you the current car configuration.
 
-As a minimum you must have the CCF_DATA EXML file that matches your vehicle and decrypted it to an XML file. This file can be discovered automatically or must be specified using `--xml` argument. It must be given the CCF to decode, by default output will be returned to stdout as a string. If a `VIN` is not specified it tries to grab it from the CCF directly itself.
+As a minimum you must have the CCF_DATA EXML file that matches your vehicle and decrypted it to an XML file (handy util for that here: https://github.com/smartgauges/exml). This file can be discovered automatically or must be specified using `--xml` argument. It must be given the CCF to decode, by default output will be returned to stdout as a string. If a `VIN` is not specified it tries to grab it from the CCF directly itself.
 
 It can work out the correct CCF_DATA file to use and provide user friendly text for the settings, for that to work it must map the CCF setting parameters to human friendly text using the SDD definitions in `IDS/SDD/XML/text`. All EXML files in the `SDD/XML` folder and sub folders must be converted to XML before use. It will create a list of values in a `__@values_cache__` and all subsequent uses of `-r` will use the cached values. The cache can be rebuilt using `-b`.
 

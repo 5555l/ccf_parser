@@ -76,7 +76,7 @@ def vindecode(vin,dx):
             model=model_id
 
             break
-    # We've not got the model ID so now we need to look up what that is
+    # We've now got the model ID so we need to look up what that is
 
     model_data=pd.DataFrame(columns=vincols)
     model_info = {}
@@ -120,7 +120,7 @@ def vindecode(vin,dx):
 
                 tdv["title_text"][1] = name
                 tdv["setting_text"][1] = decode 
-                model_data = model_data.append(tdv)
+                model_data = pd.concat([model_data,tdv])
             else:
                 # If char is nothing then its some descriptive text about the model, put that in a dict for later
                 model_info.update({name:decode})

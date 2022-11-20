@@ -51,7 +51,7 @@ def buildcache(td,cf):
             if ccf_hr.empty:
                 ccf_hr=dft
             else:
-                ccf_hr=ccf_hr.append(dft, ignore_index=True)
+                ccf_hr=pd.concat([ccf_hr, dft], ignore_index=True)
 
     # Lets get rid of any old files from previous runs
     if os.path.exists(cf): os.remove(cf)
