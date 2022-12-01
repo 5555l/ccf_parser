@@ -219,8 +219,8 @@ if __name__ == '__main__':
     argument_list = full_cmd_arguments[1:]
 
     # set the command line options
-    short_options = "hno:v:7:"
-    long_options = ["help", "vin=", "xdir="]
+    short_options = "hno:v:x:y:"
+    long_options = ["help", "vin=", "xml=", "xdir="]
 
     help_text = ("\noptions:\n"
                 "   -v / --vin <string>..........  VIN to decode (mandatory)\n"
