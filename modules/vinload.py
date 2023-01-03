@@ -71,7 +71,8 @@ def vindecode(vin,dx):
             # As soon as anything is false, this isn't our model, so move on.
             if is_model == False:
                 break
-        # If we find a matching model then store that and exit
+        
+        # If at the end of all the tests we find a matching model then store that and exit
         if is_model == True:
             model=model_id
 
@@ -127,11 +128,11 @@ def vindecode(vin,dx):
     else:
         print('No model found - aborting')
         sys.exit(2)
-    model_data["src"] = "CCF"
+    model_data["src"] = "VIN"
     return (model_info,model_data)
 
 def findccfdataid(manf,mident,vin):
-    # Read the XML in
+    # Read the Vehcile_Manifest XML in
     root = ET.parse(manf).getroot()
 
     # Find a tag that matches the brand 
@@ -156,7 +157,7 @@ def findccfdataid(manf,mident,vin):
             min_vin=vrnt.find('vin/min').text
             max_vin=vrnt.find('vin/max').text
             
-            # Test if the VIN is in range
+            # Test if the VIN is in range - it should also check for SDV being included but doesn't yet
             if not s_vin[:1] == min_vin[:1] and s_vin[2:] >= min_vin[2:] and s_vin[2:] <= max_vin:
                 continue
 
@@ -180,6 +181,12 @@ def findccfdataid(manf,mident,vin):
                         is_model = True
                     else:
                         is_model = False
+                if opt == 'FALSE':
+                    # Test is positive match 
+                    if mident[name].upper() in val or my_gt == True:
+                        is_model = False
+                    else:
+                        is_model = True
   
             # If we find a matching model then store that and exit
             if is_model == True:

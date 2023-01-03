@@ -56,8 +56,8 @@ help_text = ("\noptions:\n"
              "   -m / --dump_format <format>.  format of dump data, valid options are:\n"
              "                                   cd = can_utils candump format (default)\n"
              "                                   st = a hexadecimal string\n"
-             "   -i / --can_id <canid>.......  canID used in the can dump to broadcast CCF, default = 401 (JLR)\n"
-             "   -u / --can_id_eucd <canid>..  canID used in the can dump to broadcast CCF_EUCD, default = 402 (JLR)\n"
+             "   -i / --can_id <canid>.......  canID used in the can dump to broadcast CCF, default = 401 (Jag)\n"
+             "   -u / --can_id_eucd <canid>..  canID used in the can dump to broadcast CCF_EUCD, default = 402 (Jag)\n"
              "   -l / --lang <language>......  use human readable values in <language> in the output.\n"
              "                                 For this to work a settings cache must exist or -t must be set.\n"
              "                                 <language> must be of type supported by SDD otherwise it defaults to 'eng'\n"
@@ -70,11 +70,15 @@ help_text = ("\noptions:\n"
 # The following are things that need to exist in order for this to work, so set them to None and we'll check if they get data shoved in them later
 ccf_data_file = None
 ccfout = of = ex = json = dump = tdir = vin= xmlpath = manifest = None
-ccf = ccf_vr = model_data = ccf_eucd= None
+ccf = ccf_vr = model_data = ccf_eucd = ccf_itp = ccf_vb = ccf_res = None
 rbv = rebuild = False
 dumpf = "cd" # set this as default format
-ccfid = "401" # set this as a default canID for the CCF broadcast
-ccfeucdid = "402" # set this as a default canID for the CCF_EUCD broadcast
+ccf_id = "401" # set this as a default canID for the CCF broadcast
+ccf_eucd_id = "402" # set this as a default canID for the CCF_EUCD broadcast
+ccf_itp_id = "400" # set this as a default canID for the ITP broadcast
+ccf_vb_id = "404" # set this as a default canID for the VEH_BUILD broadcast
+ccf_res_id = "405" # set this as a default canID for the RES broadcast
+
 dlang = vlang = "eng" # set this as a default
 cachefile = ".__@values_cache__"
 
@@ -115,9 +119,9 @@ for current_argument, current_value in arguments:
     elif current_argument in ("-m", "--dump_format"):
         dumpf = current_value
     elif current_argument in ("-i", "--can_id"):
-        ccfid = current_value
+        ccf_id = current_value
     elif current_argument in ("-u", "--can_id_eucd"):
-        ccfeucdid = current_value
+        ccf_eucd_id = current_value
     elif current_argument in ("-l", "--lang"):
         vlang = current_value.lower()
         rbv = True
@@ -154,9 +158,18 @@ elif ccf == None and (dump == None or os.path.isfile(dump) == False):
     sys.exit(2)
 elif dump != None and dumpf == "cd":
     # dump file provided and candump format has been set so turn this into a long hexadecimal string
-    ccf = cdconv.convdump(dump,ccfid)
-    # See if we can find the EUCD settings from the dump file too
-    ccf_eucd = cdconv.convdump(dump,ccfeucdid)
+    ccf = cdconv.convdump(dump,ccf_id)
+    print ("CCF\n", ccf)
+    # See if we can find the EUCD/ITP/VEHICLE_BUILD & RES settings from the dump file too
+    ccf_eucd = cdconv.convdump(dump,ccf_eucd_id)
+    print ("CCF_EUCD\n", ccf_eucd)
+    ccf_itp = cdconv.convdump(dump,ccf_itp_id)
+    print ("ITP\n", ccf_itp)
+    ccf_vb = cdconv.convdump(dump,ccf_vb_id)
+    print ("VB\n", ccf_vb)
+    ccf_res = cdconv.convdump(dump,ccf_res_id)
+    print ("RES\n", ccf_res)
+
 elif dump != None and dumpf == "st":
     # dump file provided and string format has been set so load it from a file
     ccf_file = open(dump, "r")
@@ -170,12 +183,20 @@ if ccf == None:
     sys.exit(2)
 if ccf_eucd == None:
     print('No EUCD data found - skipping EUCD data extraction')
-
+if ccf_itp == None:
+    print('No ITP data found - skipping ITP data extraction')
+if ccf_vb == None:
+    print('No VEH_BUILD data found - skipping VEH_BUILD data extraction')
+if ccf_res == None:
+    print('No RESERVED data found - skipping RESERVED data extraction')
 #####################################################################################
 # Ok, we seem to have enough to work with so lets have a go.
 # The CCF is currently a long string but it needs to be broken into a list of bytes
-ccfhx = ccf_to_bytes(ccf)
-if ccf_eucd != None: eucdhx = ccf_to_bytes(ccf_eucd)
+ccf_hx = ccf_to_bytes(ccf)
+if ccf_eucd != None: ccf_eucd_hx = ccf_to_bytes(ccf_eucd)
+if ccf_itp != None: ccf_itp_hx = ccf_to_bytes(ccf_itp)
+if ccf_vb != None: ccf_vb_hx = ccf_to_bytes(ccf_vb)
+if ccf_res != None: ccf_res_hx = ccf_to_bytes(ccf_res)
 
 # If the XML path is given find the VINDecode and Vehicle Manifest files needed
 if xmlpath != None:
@@ -196,7 +217,7 @@ if vin == None and vinxml != None:
 
     # Get the vin data from the CCF based on the offset
     # python substring is an inclusive start but exclusive end position, so need to increment end byte by 1
-    vin_hex = ccfhx[vin_s:vin_e+1]
+    vin_hex = ccf_hx[vin_s:vin_e+1]
     v_st = [str(i).zfill(2) for i in vin_hex]
 
     # Check if the data looks anything like a VIN, it should be ascii codes for A-Z 0-9
@@ -260,9 +281,15 @@ if ccf_set.empty:
     print('ERROR: No CCF_DATA found in', ccf_data_file, '- aborting')
     sys.exit(2)
 else:
-    # See if we also need to grab the CCF_EUCD data and if so go and get them
+    # See if we also need to grab the EUCD, ITP, VEH_BUILD, and RES data and if so go and get them
     if ccf_eucd !=None: 
         ccf_set = pd.concat([ccf_set, ccfdataload.param(ccf_data_file,"EUCD")],ignore_index=True)
+    if ccf_itp !=None: 
+        ccf_set = pd.concat([ccf_set, ccfdataload.param(ccf_data_file,"ITP")],ignore_index=True)
+    if ccf_vb !=None: 
+        ccf_set = pd.concat([ccf_set, ccfdataload.param(ccf_data_file,"VEH_BUILD")],ignore_index=True)
+    if ccf_res !=None: 
+        ccf_set = pd.concat([ccf_set, ccfdataload.param(ccf_data_file,"RES")],ignore_index=True)
 
 print('Processed', ccf_data_file)
 
@@ -297,9 +324,9 @@ for set in ccf_set.index:
     # Get the relevant data from the CCF based on the offset and source (CCF/CCF_EUCD)
     # python substring is an inclusive start but exclusive end position, so need to increment end byte by 1
     if src == "CCF":
-        cs = ccfhx[sb:eb+1]
+        cs = ccf_hx[sb:eb+1]
     elif src == "EUCD":
-        cs = eucdhx[sb:eb+1]
+        cs = ccf_eucd_hx[sb:eb+1]
 
     # Put the things we know into the configuration
     ve_config.loc[idx] = ccf_set.loc[idx]
