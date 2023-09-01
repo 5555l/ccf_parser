@@ -69,8 +69,7 @@ if __name__ == '__main__':
     import sys
     import getopt
 
-    # This will decode the VIN and tell you its options
-    cdump = canid = None
+    cdump = can_id = None
 
     # Get full command-line arguments
     full_cmd_arguments = sys.argv
